@@ -1,8 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Meal Planning Multi-Agent System Database Schema
+// This schema supports AI agents making intelligent decisions about meal planning
 
 generator client {
   provider = "prisma-client-js"
@@ -11,4 +8,93 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// Main meal plan entity - represents one meal planning session
+model MealPlan {
+  id            String    @id @default(cuid())
+  name          String
+  attendeeCount Int
+  budgetTotal   Float?
+  startDate     DateTime
+  endDate       DateTime
+  status        String    @default("planning") // "planning", "in_progress", "completed", "failed"
+  createdAt     DateTime  @default(now())
+  
+  // Relations to other entities
+  attendees      Attendee[]
+  decisions      AgentDecision[]
+  recipes        SelectedRecipe[]
+  shoppingItems  ShoppingItem[]
+  budgetAnalysis BudgetAnalysis[]
+}
+
+// People attending the meals with their dietary requirements
+model Attendee {
+  id                  String   @id @default(cuid())
+  mealPlanId          String
+  name                String
+  dietaryRestrictions String[] // e.g., ["vegan", "gluten-free", "nut-allergy"]
+  foodPreferences     String[] // e.g., ["spicy", "mediterranean", "low-sodium"]
+  specialNotes        String?  // Additional context or medical info
+  dietarySeverity     String   @default("moderate") // "mild", "moderate", "strict", "medical"
+  
+  mealPlan MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+}
+
+// Tracks decisions made by each AI agent with reasoning
+model AgentDecision {
+  id              String   @id @default(cuid())
+  mealPlanId      String
+  agentType       String   // "dietary", "meal_planner", "budget", "orchestrator"
+  decisionType    String   // e.g., "dietary_analysis", "recipe_selection", "cost_optimization"
+  decisionData    Json     // The actual decision/recommendation data
+  reasoning       String   // Why this decision was made
+  confidenceScore Float?   // Agent's confidence in this decision (0-1)
+  createdAt       DateTime @default(now())
+  
+  mealPlan MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+}
+
+// Recipes selected by the meal planner agent
+model SelectedRecipe {
+  id                  String @id @default(cuid())
+  mealPlanId          String
+  mealSlot            String // "breakfast_day1", "lunch_day1", "dinner_day2", etc.
+  spoonacularRecipeId Int    // ID from Spoonacular API
+  recipeName          String
+  selectionReasoning  String // Why this recipe was chosen
+  estimatedServings   Int    // How many people this will serve
+  scaledIngredients   Json   // Ingredients scaled for group size
+  confidenceScore     Float? // Agent's confidence in this selection
+  
+  mealPlan MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+}
+
+// Optimized shopping list created by budget agent
+model ShoppingItem {
+  id                    String @id @default(cuid())
+  mealPlanId            String
+  ingredientName        String
+  quantity              Float
+  unit                  String  // "cups", "lbs", "items", etc.
+  estimatedCost         Float?
+  storeSection          String? // "produce", "meat", "dairy", etc. for organized shopping
+  optimizationReasoning String? // Why this quantity/brand was chosen
+  priority              Int     @default(1) // 1=essential, 2=important, 3=optional
+  
+  mealPlan MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+}
+
+// Budget analysis and optimization suggestions
+model BudgetAnalysis {
+  id                      String   @id @default(cuid())
+  mealPlanId              String
+  totalCost               Float
+  costBreakdown           Json     // Breakdown by category, meal, etc.
+  optimizationSuggestions String   // How to save money while maintaining quality
+  reasoning               String   // Budget agent's analysis reasoning
+  createdAt               DateTime @default(now())
+  
+  mealPlan MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
 }
