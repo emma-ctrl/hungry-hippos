@@ -11,6 +11,10 @@ import helmet from 'helmet'
 // Load environment variables
 import 'dotenv/config'
 
+// Import route handlers
+import mealPlansRoutes from './routes/mealPlans.js'
+import agentsRoutes from './routes/agents.js'
+
 const app = express()
 const PORT = process.env.PORT || 3001
 
@@ -28,8 +32,25 @@ app.get('/health', (req, res) => {
   })
 })
 
-// API routes will be added here
-// app.use('/api', routes)
+// API routes
+app.use('/api/meal-plans', mealPlansRoutes)
+app.use('/api/agents', agentsRoutes)
+
+// General 404 handler
+app.use((req, res) => {
+  if (req.path.startsWith('/api')) {
+    res.status(404).json({ 
+      error: 'API endpoint not found',
+      path: req.originalUrl,
+      method: req.method
+    })
+  } else {
+    res.status(404).json({ 
+      error: 'Not found',
+      path: req.originalUrl
+    })
+  }
+})
 
 // Start server
 app.listen(PORT, () => {
