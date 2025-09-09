@@ -31,6 +31,7 @@ import {
   saveShoppingItems,
   saveBudgetAnalysis 
 } from '../services/database.js'
+import { SmartOrchestrator } from '../agents/Orchestrator.js'
 
 const router = Router()
 
@@ -483,6 +484,154 @@ Please provide budget optimization suggestions and prioritize the shopping list.
     console.error('❌ Error optimizing budget:', error.message)
     res.status(500).json({
       error: 'Failed to optimize budget',
+      details: error.message
+    })
+  }
+})
+
+/**
+ * POST /api/agents/orchestrator/execute
+ * Execute the complete meal planning workflow
+ * 
+ * Expected body:
+ * {
+ *   mealPlanId: string
+ * }
+ */
+router.post('/orchestrator/execute', async (req, res) => {
+  try {
+    const { mealPlanId } = req.body
+
+    console.log(`🎯 Starting Smart Orchestrator execution for meal plan: ${mealPlanId}`)
+
+    // Validate input
+    if (!mealPlanId || typeof mealPlanId !== 'string') {
+      return res.status(400).json({ error: 'mealPlanId is required' })
+    }
+
+    // Check if meal plan exists
+    const mealPlan = await getMealPlan(mealPlanId)
+    if (!mealPlan) {
+      return res.status(404).json({ error: 'Meal plan not found' })
+    }
+
+    // Ensure we have attendees
+    if (!mealPlan.attendees || mealPlan.attendees.length === 0) {
+      return res.status(400).json({ 
+        error: 'No attendees found. Add attendees before executing workflow.' 
+      })
+    }
+
+    // Set up progress tracking
+    const progressUpdates: any[] = []
+    const orchestrator = new SmartOrchestrator((step) => {
+      progressUpdates.push({
+        ...step,
+        timestamp: new Date()
+      })
+    })
+
+    // Execute the complete workflow
+    const result = await orchestrator.executeWorkflow(mealPlanId)
+
+    console.log(`${result.success ? '✅' : '❌'} Orchestrator execution ${result.success ? 'completed' : 'failed'} for meal plan: ${mealPlanId}`)
+
+    if (result.success) {
+      res.json({
+        success: true,
+        workflowResult: result,
+        progressUpdates,
+        summary: {
+          totalSteps: result.steps.length,
+          executionTime: result.executionTime,
+          completedSteps: result.steps.filter(s => s.status === 'completed').length,
+          failedSteps: result.steps.filter(s => s.status === 'failed').length
+        }
+      })
+    } else {
+      res.status(500).json({
+        success: false,
+        error: result.error,
+        workflowResult: result,
+        progressUpdates,
+        summary: {
+          totalSteps: result.steps.length,
+          executionTime: result.executionTime,
+          completedSteps: result.steps.filter(s => s.status === 'completed').length,
+          failedSteps: result.steps.filter(s => s.status === 'failed').length
+        }
+      })
+    }
+
+  } catch (error: any) {
+    console.error('❌ Error in orchestrator execution:', error.message)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to execute workflow',
+      details: error.message
+    })
+  }
+})
+
+/**
+ * GET /api/agents/orchestrator/progress/:mealPlanId
+ * Get current workflow progress for a meal plan
+ */
+router.get('/orchestrator/progress/:mealPlanId', async (req, res) => {
+  try {
+    const { mealPlanId } = req.params
+
+    // Get meal plan with all decisions
+    const mealPlan = await getMealPlan(mealPlanId)
+    if (!mealPlan) {
+      return res.status(404).json({ error: 'Meal plan not found' })
+    }
+
+    // Analyze progress based on agent decisions
+    const progress = {
+      mealPlanId,
+      status: mealPlan.status,
+      totalSteps: 4,
+      completedSteps: 0,
+      currentStep: 'Not started',
+      decisions: mealPlan.decisions,
+      lastUpdate: mealPlan.decisions.length > 0 
+        ? mealPlan.decisions[mealPlan.decisions.length - 1].createdAt 
+        : mealPlan.createdAt
+    }
+
+    // Determine current step based on decisions
+    const decisionTypes = mealPlan.decisions.map(d => d.decisionType)
+    
+    if (decisionTypes.includes('dietary_analysis') || decisionTypes.includes('dietary_refinement')) {
+      progress.completedSteps++
+      progress.currentStep = 'Dietary Analysis Complete'
+    }
+    
+    if (mealPlan.recipes && mealPlan.recipes.length > 0) {
+      progress.completedSteps++
+      progress.currentStep = 'Recipe Selection Complete'
+    }
+    
+    if (mealPlan.shoppingItems && mealPlan.shoppingItems.length > 0) {
+      progress.completedSteps++
+      progress.currentStep = 'Quantity Calculations Complete'
+    }
+    
+    if (mealPlan.budgetAnalysis && mealPlan.budgetAnalysis.length > 0) {
+      progress.completedSteps = 4
+      progress.currentStep = 'Budget Optimization Complete'
+    }
+
+    res.json({
+      success: true,
+      progress
+    })
+
+  } catch (error: any) {
+    console.error('❌ Error getting orchestrator progress:', error.message)
+    res.status(500).json({
+      error: 'Failed to get progress',
       details: error.message
     })
   }
