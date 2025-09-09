@@ -2,16 +2,20 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "Meal planning system backend",
+  "type": "module",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "nodemon --exec ts-node src/server.ts",
+    "dev": "nodemon --ext ts --exec \"node --loader ts-node/esm src/server.ts\"",
     "build": "tsc",
     "start": "node dist/server.js",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:seed": "ts-node prisma/seed.ts"
   },
-  "keywords": ["meal-planning", "ai-agents"],
+  "keywords": [
+    "meal-planning",
+    "ai-agents"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {

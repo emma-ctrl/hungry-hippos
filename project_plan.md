@@ -477,34 +477,35 @@ docker-compose up --build -d postgres
 - Run `npx prisma migrate dev --name init` (with Docker PostgreSQL running)
 - Generate Prisma client with `npx prisma generate`
 
-### Step 3: Core Services (45 minutes)
-**Priority order:**
-1. **OpenAI Service** (`/backend/src/services/openai.ts`)
-   - Function calling setup
-   - Error handling and retries
-   - Rate limiting
+### Step 3: Simple Service Architecture (30 minutes) ✅
+**Direct Service Exports** ✅
+- **Database Service**: All Prisma operations with direct function exports
+- **OpenAI Service**: Function calling setup with direct function exports  
+- **Spoonacular Service**: Recipe search and details with direct function exports
+- **Calculation Service**: Pure calculation functions with direct exports
+- **Simple Express Server**: Basic REST API with direct service imports
 
-2. **Spoonacular Service** (`/backend/src/services/spoonacular.ts`)
-   - Recipe search and details endpoints
-   - Request caching
-   - Error handling
+**Simple Architecture Benefits** ✅
+- No context creation complexity
+- Direct function imports where needed
+- Easier debugging and testing
+- Cleaner, more straightforward code
+- Faster server startup
 
-3. **Database Service** (`/backend/src/services/database.ts`)
-   - Prisma operations for all models
-   - Transaction handling
-   - Query optimization
-
-### Step 4: Agent Implementation (2 hours)
+### Step 4: REST API Routes (1 hour)
 **Build in this order:**
-1. **Dietary Specialist Agent** (45 minutes)
-2. **Meal Planner Agent** (45 minutes) 
-3. **Budget Optimizer Agent** (30 minutes)
+1. **Meal Plans Routes** (`/backend/src/routes/mealPlans.ts`) (20 minutes)
+   - POST `/api/meal-plans` - Create meal plan with validation
+   - GET `/api/meal-plans/:id` - Get complete meal plan data
+   - POST `/api/meal-plans/:id/attendees` - Add attendees with dietary data
 
-Each agent should:
-- Use the specified system prompts
-- Implement function calling tools
-- Include comprehensive error handling
-- Store decisions with reasoning in database
+2. **Agent Routes** (`/backend/src/routes/agents.ts`) (40 minutes)
+   - POST `/api/agents/dietary/analyze` - Dietary analysis endpoint
+   - POST `/api/agents/meal-planner/search` - Recipe search endpoint  
+   - POST `/api/agents/meal-planner/select` - Recipe selection endpoint
+   - POST `/api/agents/budget/optimize` - Budget optimization endpoint
+   - Direct service imports: `import { analyzeDietary } from '../services/openai.js'`
+
 
 ### Step 5: Smart Orchestrator (45 minutes)
 - Implement workflow execution logic
@@ -512,23 +513,14 @@ Each agent should:
 - Include error recovery and retry mechanisms
 - Real-time progress updates
 
-### Step 6: API Routes (30 minutes)
-```typescript
-// /backend/src/routes/mealPlans.ts
-POST   /api/meal-plans              // Create new meal plan
-GET    /api/meal-plans/:id          // Get meal plan details
-GET    /api/meal-plans/:id/progress // Get real-time progress
-POST   /api/meal-plans/:id/execute  // Execute meal planning workflow
-```
-
-### Step 7: Frontend Components (2 hours)
+### Step 6: Frontend Components (2 hours)
 **Component priority:**
 1. **MealPlanForm.tsx** - Input form for attendees and constraints
 2. **AgentProgress.tsx** - Real-time workflow progress display
 3. **AgentDecisions.tsx** - Timeline of agent decisions with reasoning
 4. **FinalPlan.tsx** - Complete meal plan with recipes and shopping list
 
-### Step 8: Integration & Testing (30 minutes)
+### Step 7: Integration & Testing (30 minutes)
 - End-to-end workflow testing
 - Error handling verification
 - Performance optimization
